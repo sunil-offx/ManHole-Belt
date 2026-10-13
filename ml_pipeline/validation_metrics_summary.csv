@@ -1,0 +1,9 @@
+Metric,Value
+Classification Accuracy,91.80%
+Precision (Safety Hazard),99.91%
+Recall (Safety Sensitivity),85.73%
+F1-Score,92.28%
+False Alarm Rate (FAR),0.10%
+Model Inference Latency,1.053 ms
+End-to-End Alarm Trigger Latency,21.05 ms (< 200 ms target)
+Early Warning Time (EWT),85.0 seconds (Target: > 60s)

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTINEL-BELT | Confined Space Worker Safety Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Chart.js for real-time visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- Background cyber grid & glow effects -->
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="dashboard-wrapper">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="brand-logo">
+                    <span class="logo-shield">🛡️</span>
+                    <div class="brand-text">
+                        <h1>SENTINEL<span>BELT</span></h1>
+                        <p class="tagline">CONFINED-SPACE WORKER LIFE-SAFETY TELEMETRY SYSTEM</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <!-- Master System Hazard Banner -->
+                <div id="master-hazard-banner" class="hazard-banner status-safe">
+                    <div class="status-pulse"></div>
+                    <span id="banner-status-text">SYSTEM NORMAL - ALL WORKERS SAFE</span>
+                    <span id="banner-risk-pill" class="risk-pill">RISK: 4.2 / 100</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="telemetry-connection">
+                    <span class="conn-dot" id="conn-indicator"></span>
+                    <span id="conn-status-text">LIVE WEBSOCKET STREAM</span>
+                </div>
+                <button id="btn-audio-toggle" class="btn-icon" title="Toggle Acoustic Siren">
+                    <span id="audio-icon">🔊</span> Siren Enabled
+                </button>
+            </div>
+        </header>
+
+        <!-- TOP QUICK-ACTIONS / SCENARIO TESTING CONTROLLER -->
+        <section class="scenario-simulator-panel">
+            <div class="sim-header">
+                <div class="sim-title">
+                    <span class="sim-icon">⚡</span>
+                    <strong>VALIDATION TEST RIG (T1 – T13 HAZARD INJECTION)</strong>
+                    <span class="sim-subtitle">Trigger simulated confined space hazards to test risk engine, temporal models & fail-safe alerts</span>
+                </div>
+                <div class="sim-status" id="active-scenario-badge">Scenario: Normal Baseline (T1)</div>
+            </div>
+            <div class="scenario-buttons-grid">
+                <button class="btn-scenario active" data-scenario="T1">T1 Normal</button>
+                <button class="btn-scenario danger" data-scenario="T2">T2 O₂ Drop</button>
+                <button class="btn-scenario danger" data-scenario="T3">T3 H₂S Surge</button>
+                <button class="btn-scenario danger" data-scenario="T4">T4 CO Surge</button>
+                <button class="btn-scenario danger" data-scenario="T5">T5 CH₄ LEL</button>
+                <button class="btn-scenario warning" data-scenario="T6">T6 Water Rise</button>
+                <button class="btn-scenario warning" data-scenario="T7">T7 Heat Stress</button>
+                <button class="btn-scenario critical" data-scenario="T8">T8 Fall Event</button>
+                <button class="btn-scenario warning" data-scenario="T9">T9 Inactivity</button>
+                <button class="btn-scenario critical" data-scenario="T10">T10 Compound</button>
+                <button class="btn-scenario alert" data-scenario="T11">T11 Sensor Fault</button>
+                <button class="btn-scenario alert" data-scenario="T12">T12 Comm Fault</button>
+                <button class="btn-scenario alert" data-scenario="T13">T13 Low Battery</button>
+                <button class="btn-scenario sos" id="btn-manual-sos">🚨 MANUAL SOS</button>
+            </div>
+        </section>
+
+        <!-- MAIN GRID LAYOUT -->
+        <main class="main-dashboard-grid">
+            
+            <!-- LEFT COLUMN: WORKER PROFILE & DYNAMIC GAUGES -->
+            <div class="col-left">
+                <!-- Worker Identification Card -->
+                <div class="card glass-card worker-profile-card">
+                    <div class="worker-header">
+                        <div class="avatar-ring">
+                            <span class="avatar-initials">RK</span>
+                            <span class="avatar-status-dot status-dot-safe" id="worker-status-dot"></span>
+                        </div>
+                        <div class="worker-meta">
+                            <h3 id="worker-name">Ravi Kumar (Worker #14)</h3>
+                            <p class="worker-device" id="device-id-tag">DEVICE ID: <strong id="val-device-id">SB-001</strong></p>
+                            <p class="worker-location">📍 <span id="worker-location-text">MH-402 (Central Interceptor, Depth 4.5m)</span></p>
+                        </div>
+                    </div>
+                    <div class="worker-stats-row">
+                        <div class="stat-pill">
+                            <span class="stat-label">BATTERY</span>
+                            <span class="stat-value" id="val-battery">88.5% <small class="text-green">3.95V</small></span>
+                        </div>
+                        <div class="stat-pill">
+                            <span class="stat-label">RUN-TIME</span>
+                            <span class="stat-value" id="val-runtime">~16.2 hrs</span>
+                        </div>
+                        <div class="stat-pill">
+                            <span class="stat-label">HEART/SPO₂</span>
+                            <span class="stat-value" id="val-spo2">98% <small>76 bpm</small></span>
+                        </div>
+                        <div class="stat-pill">
+                            <span class="stat-label">MOTION</span>
+                            <span class="stat-value text-green" id="val-motion-state">Active (1.0g)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ATMOSPHERIC & GAS HAZARDS MONITORING GAUGE SUITE -->
+                <div class="card glass-card multi-gas-suite">
+                    <div class="card-title-bar">
+                        <h4>ATMOSPHERIC GAS CONCENTRATIONS & TOXICITY</h4>
+                        <span class="chip-badge">OSHA / NIOSH COMPLIANT</span>
+                    </div>
+
+                    <div class="gas-cards-grid">
+                        <!-- OXYGEN (O2) -->
+                        <div class="gas-card gas-o2" id="card-gas-o2">
+                            <div class="gas-header">
+                                <span class="gas-symbol">O₂</span>
+                                <span class="gas-name">Oxygen Level</span>
+                                <span class="gas-limit-tag">Safe: 19.5 - 23.5%</span>
+                            </div>
+                            <div class="gas-dial-container">
+                                <div class="gas-main-val"><span id="val-o2">20.9</span><small>%</small></div>
+                                <div class="gas-bar-track">
+                                    <div class="gas-bar-fill fill-o2" id="bar-o2" style="width: 83.6%;"></div>
+                                    <div class="safe-zone-marker" title="Safe Band: 19.5% - 23.5%"></div>
+                                </div>
+                            </div>
+                            <div class="gas-footer">
+                                <span class="gas-delta" id="delta-o2">dC/dt: -0.01 %/s</span>
+                                <span class="gas-status-pill pill-safe" id="status-pill-o2">SAFE</span>
+                            </div>
+                        </div>
+
+                        <!-- HYDROGEN SULPHIDE (H2S) -->
+                        <div class="gas-card gas-h2s" id="card-gas-h2s">
+                            <div class="gas-header">
+                                <span class="gas-symbol">H₂S</span>
+                                <span class="gas-name">Hydrogen Sulphide</span>
+                                <span class="gas-limit-tag">PEL: 10 ppm | IDLH: 100</span>
+                            </div>
+                            <div class="gas-dial-container">
+                                <div class="gas-main-val"><span id="val-h2s">0.1</span><small>ppm</small></div>
+                                <div class="gas-bar-track">
+                                    <div class="gas-bar-fill fill-h2s" id="bar-h2s" style="width: 1%;"></div>
+                                </div>
+                            </div>
+                            <div class="gas-footer">
+                                <span class="gas-delta" id="delta-h2s">dC/dt: 0.00 ppm/s</span>
+                                <span class="gas-status-pill pill-safe" id="status-pill-h2s">SAFE</span>
+                            </div>
+                        </div>
+
+                        <!-- CARBON MONOXIDE (CO) -->
+                        <div class="gas-card gas-co" id="card-gas-co">
+                            <div class="gas-header">
+                                <span class="gas-symbol">CO</span>
+                                <span class="gas-name">Carbon Monoxide</span>
+                                <span class="gas-limit-tag">PEL: 35 ppm | IDLH: 1200</span>
+                            </div>
+                            <div class="gas-dial-container">
+                                <div class="gas-main-val"><span id="val-co">1.0</span><small>ppm</small></div>
+                                <div class="gas-bar-track">
+                                    <div class="gas-bar-fill fill-co" id="bar-co" style="width: 2%;"></div>
+                                </div>
+                            </div>
+                            <div class="gas-footer">
+                                <span class="gas-delta" id="delta-co">dC/dt: 0.00 ppm/s</span>
+                                <span class="gas-status-pill pill-safe" id="status-pill-co">SAFE</span>
+                            </div>
+                        </div>
+
+                        <!-- METHANE (CH4) -->
+                        <div class="gas-card gas-ch4" id="card-gas-ch4">
+                            <div class="gas-header">
+                                <span class="gas-symbol">CH₄</span>
+                                <span class="gas-name">Methane / Explosive</span>
+                                <span class="gas-limit-tag">Warn: 10% | LEL Max: 25%</span>
+                            </div>
+                            <div class="gas-dial-container">
+                                <div class="gas-main-val"><span id="val-ch4">0.0</span><small>% LEL</small></div>
+                                <div class="gas-bar-track">
+                                    <div class="gas-bar-fill fill-ch4" id="bar-ch4" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                            <div class="gas-footer">
+                                <span class="gas-delta" id="delta-ch4">dC/dt: 0.00 %/s</span>
+                                <span class="gas-status-pill pill-safe" id="status-pill-ch4">SAFE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WATER LEVEL & CONFINED SHAFT MONITOR -->
+                <div class="card glass-card shaft-monitoring-card">
+                    <div class="card-title-bar">
+                        <h4>MANHOLE INUNDATION & WATER LEVEL</h4>
+                        <span class="chip-badge">ULTRASONIC ECHO d=vt/2</span>
+                    </div>
+                    <div class="water-section-content">
+                        <div class="manhole-visualizer">
+                            <div class="manhole-shaft">
+                                <div class="worker-marker" title="Worker Belt Height">👷</div>
+                                <div class="water-liquid" id="visual-water-fill" style="height: 5%;">
+                                    <div class="water-wave"></div>
+                                </div>
+                            </div>
+                            <div class="depth-ticks">
+                                <span>2.0m (Top)</span>
+                                <span>1.5m</span>
+                                <span>1.0m (Belt)</span>
+                                <span>0.5m</span>
+                                <span>0.0m (Sump)</span>
+                            </div>
+                        </div>
+
+                        <div class="water-details-col">
+                            <div class="water-big-readout">
+                                <span class="val-big" id="val-water">5.0</span><span class="unit">% Capacity</span>
+                                <div class="water-cm-text">Calculated Water Column: <strong id="val-water-cm">10.0 cm</strong></div>
+                            </div>
+                            <div class="env-micro-row">
+                                <div class="env-item">
+                                    <span class="env-icon">🌡️</span>
+                                    <div>
+                                        <div class="env-label">Temperature</div>
+                                        <div class="env-val" id="val-temp">24.5 °C</div>
+                                    </div>
+                                </div>
+                                <div class="env-item">
+                                    <span class="env-icon">💧</span>
+                                    <div>
+                                        <div class="env-label">Humidity</div>
+                                        <div class="env-val" id="val-hum">65.0 %</div>
+                                    </div>
+                                </div>
+                                <div class="env-item">
+                                    <span class="env-icon">🔊</span>
+                                    <div>
+                                        <div class="env-label">Sound Velocity</div>
+                                        <div class="env-val" id="val-sound-speed">346.1 m/s</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: RISK ENGINE, CHARTS, TEMPORAL FORECAST & ALERTS -->
+            <div class="col-right">
+
+                <!-- RISK ENGINE & AI FUSION COCKPIT -->
+                <div class="card glass-card risk-cockpit-card">
+                    <div class="card-title-bar">
+                        <h4>COMPOSITE RISK ENGINE & AI FUSION</h4>
+                        <span class="chip-badge ai-badge" id="ai-model-badge">RANDOM FOREST + ISOLATION FOREST</span>
+                    </div>
+
+                    <div class="risk-meter-wrapper">
+                        <div class="risk-gauge-box">
+                            <div class="risk-circle-meter">
+                                <svg class="circle-svg" viewBox="0 0 160 160">
+                                    <circle class="circle-bg" cx="80" cy="80" r="70"></circle>
+                                    <circle class="circle-progress" id="risk-circle-bar" cx="80" cy="80" r="70"></circle>
+                                </svg>
+                                <div class="circle-inner-content">
+                                    <span class="risk-number" id="val-risk-score">4.2</span>
+                                    <span class="risk-denom">/ 100</span>
+                                    <span class="risk-grade text-green" id="val-risk-grade">SAFE</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="risk-breakdown-box">
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">O₂ Hazard Component (30%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-o2" style="width: 0%;"></div></div>
+                                <span class="breakdown-val" id="score-o2">0.0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">H₂S Hazard Component (25%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-h2s" style="width: 0.5%;"></div></div>
+                                <span class="breakdown-val" id="score-h2s">0.0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">CO Hazard Component (15%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-co" style="width: 1%;"></div></div>
+                                <span class="breakdown-val" id="score-co">0.0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">CH₄ Hazard Component (15%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-ch4" style="width: 0%;"></div></div>
+                                <span class="breakdown-val" id="score-ch4">0.0</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">Water Inundation (10%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-water" style="width: 5%;"></div></div>
+                                <span class="breakdown-val" id="score-water">0.1</span>
+                            </div>
+                            <div class="breakdown-row">
+                                <span class="breakdown-label">Motion / Fall Hazard (5%)</span>
+                                <div class="progress-track"><div class="progress-fill" id="pb-motion" style="width: 0%;"></div></div>
+                                <span class="breakdown-val" id="score-motion">0.0</span>
+                            </div>
+                        </div>
+
+                        <div class="ai-diagnostics-box">
+                            <div class="diag-item">
+                                <span class="diag-title">Anomaly Status</span>
+                                <span class="diag-pill pill-normal" id="diag-anomaly-pill">NORMAL PATTERN</span>
+                            </div>
+                            <div class="diag-item">
+                                <span class="diag-title">Fall Supervisor</span>
+                                <span class="diag-pill pill-normal" id="diag-fall-pill">NO FALL DETECTED</span>
+                            </div>
+                            <div class="diag-item">
+                                <span class="diag-title">Fail-Safe Override</span>
+                                <span class="diag-pill pill-inactive" id="diag-override-pill">STANDBY</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TEMPORAL EARLY-WARNING FORECAST -->
+                <div class="card glass-card temporal-forecast-card">
+                    <div class="card-title-bar">
+                        <h4>TEMPORAL HAZARD FORECAST & TIME-TO-THRESHOLD</h4>
+                        <span class="chip-badge">SLIDING-WINDOW TREND</span>
+                    </div>
+                    <div class="temporal-tracker-grid">
+                        <div class="temporal-item" id="temp-box-o2">
+                            <span class="temp-gas-title">O₂ Depletion Clock</span>
+                            <div class="temp-time-val" id="time-to-o2">∞</div>
+                            <span class="temp-sub" id="trend-o2">Stable at 20.9%</span>
+                        </div>
+                        <div class="temporal-item" id="temp-box-h2s">
+                            <span class="temp-gas-title">H₂S Critical Clock</span>
+                            <div class="temp-time-val" id="time-to-h2s">∞</div>
+                            <span class="temp-sub" id="trend-h2s">Baseline (0.1 ppm)</span>
+                        </div>
+                        <div class="temporal-item" id="temp-box-co">
+                            <span class="temp-gas-title">CO Critical Clock</span>
+                            <div class="temp-time-val" id="time-to-co">∞</div>
+                            <span class="temp-sub" id="trend-co">Baseline (1.0 ppm)</span>
+                        </div>
+                        <div class="temporal-item" id="temp-box-ch4">
+                            <span class="temp-gas-title">CH₄ LEL Limit Clock</span>
+                            <div class="temp-time-val" id="time-to-ch4">∞</div>
+                            <span class="temp-sub" id="trend-ch4">Safe (0.0 % LEL)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REAL-TIME CHARTS CANVAS -->
+                <div class="card glass-card chart-container-card">
+                    <div class="chart-header-row">
+                        <h4>REAL-TIME MULTI-HAZARD TIME-SERIES (60s ROLLING WINDOW)</h4>
+                        <div class="chart-legend-pills">
+                            <span class="legend-pill o2">O₂ (%)</span>
+                            <span class="legend-pill h2s">H₂S (ppm)</span>
+                            <span class="legend-pill co">CO (ppm)</span>
+                            <span class="legend-pill ch4">CH₄ (%)</span>
+                            <span class="legend-pill risk">Risk Score</span>
+                        </div>
+                    </div>
+                    <div class="canvas-wrapper">
+                        <canvas id="liveMultiSensorChart" height="180"></canvas>
+                    </div>
+                </div>
+
+                <!-- EMERGENCY INCIDENT LOG TABLE -->
+                <div class="card glass-card alerts-table-card">
+                    <div class="card-title-bar">
+                        <h4>SAFETY INCIDENT LOG & SUPERVISOR ACKNOWLEDGMENTS</h4>
+                        <span class="chip-badge alert-count-badge" id="active-alert-count">0 ACTIVE</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="sentinel-table">
+                            <thead>
+                                <tr>
+                                    <th>TIMESTAMP</th>
+                                    <th>DEVICE</th>
+                                    <th>SEVERITY</th>
+                                    <th>HAZARD EVENT</th>
+                                    <th>DISPATCH</th>
+                                    <th>ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alerts-tbody">
+                                <tr class="empty-row">
+                                    <td colspan="6">No safety incidents recorded. All workers normal.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- REMOTE DEVICE CONFIGURATION ACCORDION -->
+                <div class="card glass-card config-drawer">
+                    <div class="card-title-bar clickable" id="toggle-config-btn">
+                        <h4>⚙️ REMOTE SENTINEL CONFIGURATION & NVS THRESHOLDS</h4>
+                        <span class="toggle-arrow" id="config-arrow">▼ Expand</span>
+                    </div>
+                    <div class="config-body" id="config-panel-body" style="display: none;">
+                        <form id="form-device-config" class="config-grid">
+                            <div class="cfg-group">
+                                <label>O₂ Weight ($W_{O_2}$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-o2" value="0.30">
+                            </div>
+                            <div class="cfg-group">
+                                <label>H₂S Weight ($W_{H_2S}$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-h2s" value="0.25">
+                            </div>
+                            <div class="cfg-group">
+                                <label>CO Weight ($W_{CO}$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-co" value="0.15">
+                            </div>
+                            <div class="cfg-group">
+                                <label>CH₄ Weight ($W_{CH_4}$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-ch4" value="0.15">
+                            </div>
+                            <div class="cfg-group">
+                                <label>Water Weight ($W_W$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-water" value="0.10">
+                            </div>
+                            <div class="cfg-group">
+                                <label>Motion Weight ($W_M$):</label>
+                                <input type="number" step="0.01" min="0" max="1" id="cfg-w-motion" value="0.05">
+                            </div>
+                            <div class="cfg-group">
+                                <label>Safe Threshold Max:</label>
+                                <input type="number" step="1" min="10" max="50" id="cfg-th-safe" value="30.0">
+                            </div>
+                            <div class="cfg-group">
+                                <label>Warning Threshold Max:</label>
+                                <input type="number" step="1" min="40" max="80" id="cfg-th-warn" value="60.0">
+                            </div>
+                            <div class="cfg-group">
+                                <label>O₂ Emergency Override (%):</label>
+                                <input type="number" step="0.1" min="15" max="20" id="cfg-th-o2-over" value="19.5">
+                            </div>
+                            <div class="cfg-actions">
+                                <button type="submit" class="btn-primary" id="btn-save-config">Push Config to Belt via MQTT</button>
+                                <span class="cfg-feedback" id="cfg-feedback-msg"></span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <p>SENTINEL-BELT v1.2.0 • Industrial Safety Framework • Confined-Space Protection Architecture • Real-Time Fail-Safe Assurance</p>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="js/app.js"></script>
+</body>
+</html>
